@@ -16,7 +16,7 @@ RST = 0
 sf = 7
 
 # Set center frequency uint32_t
-freq = 868100000 # in Mhz! (868.1)
+freq = 868100000  # in Mhz! (868.1)
 
 #############################################
 #############################################
@@ -165,14 +165,14 @@ def readReg(addr):
 
 
 def writeReg(addr, value):
-    spibuf = bytes(addr | 0x80, value)
+    spibuf = bytes([addr | 0x80, value])
     selectreceiver()
     wp.wiringPiSPIDataRW(CHANNEL, spibuf)
     unselectreceiver()
 
 
 def opmode(mode):
-    writeReg(REG_OPMODE, (readReg(REG_OPMODE) & ~OPMODE_MASK) | mode)
+    writeReg(REG_OPMODE, (readReg(REG_OPMODE) & (~OPMODE_MASK & 255)) | mode)
 
 
 def opmodeLora():
@@ -183,7 +183,7 @@ def opmodeLora():
 
 
 def SetupLoRa():
-    global sx1272;
+    global sx1272
     wp.digitalWrite(RST, HIGH)
     wp.delay(100)
     wp.digitalWrite(RST, LOW)
@@ -211,10 +211,10 @@ def SetupLoRa():
     opmode(OPMODE_SLEEP)
 
     # set frequency
-    frf = (freq << 19) // 32000000;
-    writeReg(REG_FRF_MSB, (frf >> 16));
-    writeReg(REG_FRF_MID, (frf >> 8));
-    writeReg(REG_FRF_LSB, (frf >> 0));
+    frf = (freq << 19) // 32000000
+    writeReg(REG_FRF_MSB, (frf >> 16) & 255)  # get uint8 part
+    writeReg(REG_FRF_MID, (frf >> 8) & 255)   # get uint8 part
+    writeReg(REG_FRF_LSB, (frf >> 0) & 255)   # get uint8 part
 
     writeReg(REG_SYNC_WORD, 0x34); # LoRaWAN public sync word
 
@@ -275,11 +275,11 @@ def receivepacket():
             value = readReg(REG_PKT_SNR_VALUE)
             if (value & 0x80): # The SNR sign bit is 1
                 # Invert and divide by 4
-                value = ( ( ~value + 1 ) & 0xFF ) >> 2
+                value = (((~value & 255) + 1) & 0xFF) >> 2
                 SNR = -value
             else:
                 # Divide by 4
-                SNR = ( value & 0xFF ) >> 2
+                SNR = (value & 0xFF) >> 2
 
             if (sx1272):
                 rssicorr = 139
@@ -305,7 +305,7 @@ def configPower(pw):
         elif (pw < 2):
             pw = 2
         # check board type for BOOST pin
-        writeReg(RegPaConfig, (0x80 | (pw & 0xf)))
+        writeReg(RegPaConfig, (0x80 | (pw & 0xf)) & 255)  # get uint8 part
         writeReg(RegPaDac, readReg(RegPaDac) | 0x4)
 
     else:
@@ -314,7 +314,7 @@ def configPower(pw):
             pw = 17
         elif (pw < 2):
             pw = 2
-        writeReg(RegPaConfig, (0x80 | (pw-2)))
+        writeReg(RegPaConfig, (0x80 | (pw-2)) & 255)  # get uint8 part
 
 
 def writeBuf(addr, value, len):
@@ -333,7 +333,7 @@ def txlora(frame, datalen):
     # clear all radio IRQ flags
     writeReg(REG_IRQ_FLAGS, 0xFF)
     # mask all IRQs but TxDone
-    writeReg(REG_IRQ_FLAGS_MASK, ~IRQ_LORA_TXDONE_MASK)
+    writeReg(REG_IRQ_FLAGS_MASK, (~IRQ_LORA_TXDONE_MASK & 255))  # Ensure that ~ does not result in negative number
     # initialize  the payload size and address pointers
     writeReg(REG_FIFO_TX_BASE_AD, 0x00)
     writeReg(REG_FIFO_ADDR_PTR, 0x00)
@@ -349,6 +349,8 @@ def txlora(frame, datalen):
 
 
 def reset_to_standby():
+    print("Switching back to standby mode!")
+    opmodeLora()
     opmode(OPMODE_STANDBY)
 
 
@@ -384,7 +386,9 @@ if __name__ == "__main__":
     print("Send packets at SF " + str(sf) + " on " + str(freq/1000000) + "Mhz\n")
 
     while(1):
+        print("Scanning for people...")
         peopleout = os.popen("howmanypeoplearearound -a wlan0 --number --allmacaddresses").read()
         numpeople = int(peopleout[peopleout.find('\n')+1:])
-        msg = bytes(node_number, numpeople)
+        msg = bytes([node_number, numpeople])
+        print("Found " + str(numpeople) + " people. Transmitting message!")
         resettimer = txlora(msg, len(msg))
