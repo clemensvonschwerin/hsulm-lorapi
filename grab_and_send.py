@@ -397,6 +397,10 @@ if __name__ == "__main__":
 
     lorawan.create(MHDR.UNCONF_DATA_UP, {'devaddr': devaddr, 'fcnt': 1, 'data': list(map(ord, 'Python rules!'))})
 
+    msg = bytes(lorawan.to_raw())
+    while 1:
+        resettimer = txlora(msg, len(msg))
+
     # while(1):
     #     print("Scanning for people...")
     #     peopleout = os.popen("howmanypeoplearearound -a wlan0 --number --allmacaddresses").read()
