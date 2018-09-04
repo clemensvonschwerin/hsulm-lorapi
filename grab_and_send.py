@@ -350,9 +350,14 @@ def txlora(frame, datalen):
     # now we actually start the transmission
     opmode(OPMODE_TX)
 
-    t = Timer(10, reset_to_standby)
-    t.start()
-    return t
+    wp.delay(10000)
+
+    reset_to_standby()
+
+    return {}
+    #t = Timer(10, reset_to_standby)
+    #t.start()
+    #return t
 
 
 def reset_to_standby():
@@ -400,6 +405,7 @@ if __name__ == "__main__":
     msg = bytes(lorawan.to_raw())
     while 1:
         resettimer = txlora(msg, len(msg))
+        wp.delay(10000)
 
     # while(1):
     #     print("Scanning for people...")
