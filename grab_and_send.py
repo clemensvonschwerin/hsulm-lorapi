@@ -2,6 +2,8 @@ import wiringpi as wp
 import os
 import sys
 from threading import Timer
+import LoRaWAN
+from LoRaWAN.MHDR import MHDR
 
 # From: https:#github.com/dragino/rpi-lora-tranceiver/blob/master/dragino_lora_app_w1/main.c
 # SX1272 - Raspberry connections
@@ -141,6 +143,11 @@ INPUT = 0
 # The address of the node which is 10 by default
 node_number = 10
 msg = bytearray([node_number, 0])
+
+# TTN init information
+devaddr = [0x26, 0x01, 0x16, 0x08]
+nwskey = [0x74, 0x09, 0x86, 0x05, 0x2A, 0x14, 0x07, 0xCD, 0xCB, 0xA7, 0x06, 0x1A, 0xEA, 0x6C, 0x0D, 0xA0]
+appskey = [0x81, 0xB4, 0x19, 0x40, 0x57, 0x4C, 0xE6, 0xC2, 0xA1, 0x2B, 0x28, 0xDD, 0x3E, 0x55, 0x5F, 0x93]
 
 
 def die(error):
@@ -385,10 +392,15 @@ if __name__ == "__main__":
 
     print("Send packets at SF " + str(sf) + " on " + str(freq/1000000) + "Mhz\n")
 
-    while(1):
-        print("Scanning for people...")
-        peopleout = os.popen("howmanypeoplearearound -a wlan0 --number --allmacaddresses").read()
-        numpeople = int(peopleout[peopleout.find('\n')+1:])
-        msg = bytes([node_number, numpeople])
-        print("Found " + str(numpeople) + " people. Transmitting message!")
-        resettimer = txlora(msg, len(msg))
+    # Connect to TTN using LoRaWAN
+    lorawan = LoRaWAN.new(nwskey, appskey)
+
+    lorawan.create(MHDR.UNCONF_DATA_UP, {'devaddr': devaddr, 'fcnt': 1, 'data': list(map(ord, 'Python rules!'))})
+
+    # while(1):
+    #     print("Scanning for people...")
+    #     peopleout = os.popen("howmanypeoplearearound -a wlan0 --number --allmacaddresses").read()
+    #     numpeople = int(peopleout[peopleout.find('\n')+1:])
+    #     msg = bytes([node_number, numpeople])
+    #     print("Found " + str(numpeople) + " people. Transmitting message!")
+    #     resettimer = txlora(msg, len(msg))
